@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>윙스팬 포켓 점수 계산기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'sans-serif'],
+            serif: ['"Gowun Batang"', 'serif'],
+          },
+          colors: {
+            avian: {
+              sky: '#e5f1f6',
+              mist: '#f2f7f9',
+              parchment: '#fbf8f1',
+              teal: '#134e6f',
+              tealDark: '#0d3952',
+              oriole: '#e89b25',
+              orioleDeep: '#c87314',
+              leaf: '#5c8a47',
+              leafLight: '#eaf2e6',
+              nest: '#7d634a',
+              ink: '#1e2f38',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* 수채화 종이 질감 및 자연주의 배경 */
+    body {
+      background-color: #e5f1f6;
+      background-image:
+        radial-gradient(circle at 15% 10%, rgba(190, 223, 236, 0.75) 0%, transparent 45%),
+        radial-gradient(circle at 85% 18%, rgba(248, 225, 180, 0.45) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(251, 248, 241, 0.95) 0%, rgba(235, 245, 248, 0.85) 100%);
+      color: #1e2f38;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* 미세한 수채화 종이 텍스처 오버레이 */
+    .watercolor-paper {
+      background-color: rgba(251, 248, 241, 0.92);
+      background-image:
+        radial-gradient(rgba(19, 78, 111, 0.03) 1px, transparent 0),
+        radial-gradient(rgba(232, 155, 37, 0.03) 1px, transparent 0);
+      background-size: 24px 24px;
+      background-position: 0 0, 12px 12px;
+      box-shadow:
+        0 12px 32px -8px rgba(19, 78, 111, 0.14),
+        0 2px 6px rgba(19, 78, 111, 0.06),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.85);
+    }
+
+    /* 하늘을 날아다니는 새 애니메이션 (GPU 가속, 깜빡임 방지) */
+    .sky-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .bird-flight {
+      position: absolute;
+      will-change: transform;
+      opacity: 0.72;
+    }
+
+    .bird-flight-1 {
+      top: 6%;
+      left: -80px;
+      animation: flyAcrossRight 26s linear infinite;
+    }
+
+    .bird-flight-2 {
+      top: 15%;
+      left: -120px;
+      transform: scale(0.72);
+      opacity: 0.52;
+      animation: flyAcrossRight 34s linear infinite;
+      animation-delay: -11s;
+    }
+
+    .bird-flight-3 {
+      top: 11%;
+      right: -90px;
+      animation: flyAcrossLeft 30s linear infinite;
+      animation-delay: -5s;
+    }
+
+    @keyframes flyAcrossRight {
+      0% {
+        transform: translate3d(-10vw, 12px, 0) rotate(-3deg);
+      }
+      25% {
+        transform: translate3d(25vw, -10px, 0) rotate(2deg);
+      }
+      50% {
+        transform: translate3d(55vw, 8px, 0) rotate(-2deg);
+      }
+      75% {
+        transform: translate3d(85vw, -14px, 0) rotate(3deg);
+      }
+      100% {
+        transform: translate3d(118vw, 4px, 0) rotate(-1deg);
+      }
+    }
+
+    @keyframes flyAcrossLeft {
+      0% {
+        transform: translate3d(10vw, -6px, 0) scaleX(-1) rotate(-2deg);
+      }
+      30% {
+        transform: translate3d(-30vw, 14px, 0) scaleX(-1) rotate(3deg);
+      }
+      65% {
+        transform: translate3d(-70vw, -8px, 0) scaleX(-1) rotate(-2deg);
+      }
+      100% {
+        transform: translate3d(-120vw, 10px, 0) scaleX(-1) rotate(1deg);
+      }
+    }
+
+    /* 날갯짓 모션 */
+    .wing-flap {
+      transform-origin: 24px 20px;
+      animation: flapWing 0.85s ease-in-out infinite alternate;
+    }
+
+    .wing-flap-slow {
+      transform-origin: 24px 20px;
+      animation: flapWing 1.1s ease-in-out infinite alternate;
+    }
+
+    @keyframes flapWing {
+      0% {
+        transform: rotate(-18deg) scaleY(0.92);
+      }
+      100% {
+        transform: rotate(22deg) scaleY(1.05);
+      }
+    }
+
+    /* 숫자 입력 스피너 제거 및 모바일 줌 방지 (16px 이상 유지) */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+      font-size: 18px !important;
+    }
+    input[type="text"] {
+      font-size: 16px !important;
+    }
+
+    /* 부드러운 화면 전환 */
+    .view-panel {
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+    .view-hidden {
+      display: none !important;
+    }
+
+    /* 터치 버튼 반응성 */
+    .btn-press:active {
+      transform: scale(0.96);
+    }
+
+    /* 1등 카드 금빛 테두리 글로우 */
+    .winner-card {
+      background: linear-gradient(145deg, #fffdf7 0%, #fef4dc 100%);
+      border: 2px solid #e89b25;
+      box-shadow: 0 10px 24px -6px rgba(232, 155, 37, 0.28);
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-avian-oriole/20 selection:text-avian-teal">
+
+  <!-- 하늘 배경 및 날아다니는 새 레이어 -->
+  <div class="sky-layer" aria-hidden="true">
+    <!-- 좌측 상단 나뭇가지와 잎사귀 일러스트 -->
+    <svg class="absolute -top-2 -left-4 w-56 sm:w-72 opacity-80" viewBox="0 0 280 180" fill="none">
+      <path d="M-10 10 Q 95 45, 225 135" stroke="#6c533c" stroke-width="5" stroke-linecap="round" />
+      <path d="M95 52 Q 125 32, 155 24" stroke="#6c533c" stroke-width="3" stroke-linecap="round" />
+      <path d="M155 90 Q 175 115, 185 142" stroke="#6c533c" stroke-width="2.5" stroke-linecap="round" />
+      <!-- 나뭇잎들 -->
+      <path d="M128 33 C 134 15, 154 12, 162 22 C 150 32, 138 35, 128 33 Z" fill="#6b9b53" opacity="0.85" />
+      <path d="M108 42 C 102 24, 118 12, 130 18 C 126 30, 118 38, 108 42 Z" fill="#54803f" opacity="0.8" />
+      <path d="M174 118 C 192 116, 204 128, 198 140 C 186 136, 178 128, 174 118 Z" fill="#6b9b53" opacity="0.82" />
+      <path d="M179 132 C 185 148, 174 162, 162 158 C 164 146, 170 138, 179 132 Z" fill="#4d7639" opacity="0.78" />
+    </svg>
+
+    <!-- 우측 상단 나뭇가지 일러스트 -->
+    <svg class="absolute -top-2 -right-4 w-48 sm:w-64 opacity-70" viewBox="0 0 240 150" fill="none">
+      <path d="M250 15 Q 160 48, 70 105" stroke="#6c533c" stroke-width="4" stroke-linecap="round" />
+      <path d="M145 58 C 132 42, 114 42, 108 54 C 120 62, 134 62, 145 58 Z" fill="#6b9b53" opacity="0.8" />
+      <path d="M112 78 C 96 72, 82 82, 84 94 C 96 92, 106 86, 112 78 Z" fill="#54803f" opacity="0.75" />
+    </svg>
+
+    <!-- 날아가는 볼티모어 꾀꼬리 (오렌지 & 블랙) -->
+    <div class="bird-flight bird-flight-1">
+      <svg width="56" height="40" viewBox="0 0 64 46" fill="none">
+        <!-- 꼬리 -->
+        <path d="M6 22 L0 17 L2 25 L0 29 L8 25 Z" fill="#1e242b" />
+        <!-- 몸통 (오렌지빛 노랑) -->
+        <ellipse cx="24" cy="23" rx="14" ry="7.5" fill="#f09819" />
+        <!-- 가슴 그라데이션 -->
+        <path d="M15 24 C 20 30, 31 30, 36 23 C 30 25, 20 25, 15 24 Z" fill="#e06d10" />
+        <!-- 머리 (검은 깃털) -->
+        <circle cx="38" cy="19" r="6.2" fill="#1d232a" />
+        <!-- 부리 -->
+        <path d="M43 18 L52 19.5 L43 21 Z" fill="#8fa3b0" />
+        <!-- 날개 (날갯짓 애니메이션) -->
+        <path class="wing-flap" d="M22 20 C 16 6, 6 4, 4 12 C 11 15, 17 18, 22 20 Z" fill="#1d232a" />
+        <path class="wing-flap" d="M20 19 C 16 11, 10 9, 8 14 C 13 16, 17 18, 20 19 Z" fill="#f5a623" />
+      </svg>
+    </div>
+
+    <!-- 멀리 날아가는 암컷 꾀꼬리 (노랑 & 올리브) -->
+    <div class="bird-flight bird-flight-2">
+      <svg width="52" height="38" viewBox="0 0 64 46" fill="none">
+        <path d="M6 22 L0 18 L2 26 L8 25 Z" fill="#8b7d3a" />
+        <ellipse cx="24" cy="23" rx="13.5" ry="7" fill="#f4cb42" />
+        <circle cx="37" cy="19.5" r="5.8" fill="#e5b82e" />
+        <path d="M42 18.5 L50 20 L42 21.5 Z" fill="#8fa3b0" />
+        <path class="wing-flap-slow" d="M22 20 C 16 7, 7 5, 5 13 C 12 16, 17 18, 22 20 Z" fill="#6e6538" />
+      </svg>
+    </div>
+
+    <!-- 반대편에서 날아오는 파랑새 실루엣 -->
+    <div class="bird-flight bird-flight-3">
+      <svg width="48" height="36" viewBox="0 0 64 46" fill="none">
+        <path d="M6 22 L0 18 L2 26 L8 25 Z" fill="#2c6e91" />
+        <ellipse cx="24" cy="23" rx="13" ry="6.8" fill="#4b94b8" />
+        <path d="M16 24 C 21 29, 30 29, 35 23 Z" fill="#e69d35" />
+        <circle cx="37" cy="19.5" r="5.6" fill="#2c6e91" />
+        <path d="M42 18.5 L50 20 L42 21.5 Z" fill="#526570" />
+        <path class="wing-flap" d="M22 20 C 16 7, 7 5, 5 13 C 12 16, 17 18, 22 20 Z" fill="#1e5370" />
+      </svg>
+    </div>
+  </div>
+
+  <!-- 메인 컨테이너 -->
+  <div class="relative z-10 max-w-lg mx-auto px-4 pt-5 pb-10 min-h-dvh flex flex-col justify-between">
+    <div>
+      <!-- 상단 타이틀 헤더 (박스 아트의 깃털 & 볼드 슬레이트 블루 타이포 반영) -->
+      <header class="text-center mb-5 select-none">
+        <div class="inline-flex items-center justify-center gap-2 mb-1">
+          <!-- 좌측 작은 깃털 -->
+          <svg class="w-5 h-5 text-avian-teal opacity-80 -rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" />
+            <line x1="16" y1="8" x2="2" y2="22" />
+          </svg>
+          <span class="text-xs font-bold tracking-[0.2em] text-avian-teal/80 uppercase">WINGSPAN POCKET</span>
+          <!-- 우측 작은 깃털 -->
+          <svg class="w-5 h-5 text-avian-oriole opacity-90 rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" />
+            <line x1="16" y1="8" x2="2" y2="22" />
+          </svg>
+        </div>
+
+        <h1 class="text-[28px] sm:text-[32px] font-extrabold tracking-tight text-avian-teal drop-shadow-[0_1px_0_rgba(255,255,255,0.9)]">
+          윙스팬 포켓 점수 계산기
+        </h1>
+
+        <!-- 하단 깃털 장식 디바이더 -->
+        <div class="flex items-center justify-center gap-2 mt-1.5">
+          <span class="h-[1.5px] w-12 bg-gradient-to-r from-transparent to-avian-teal/35 rounded-full"></span>
+          <svg class="w-16 h-4 text-avian-teal/75" viewBox="0 0 80 20" fill="none">
+            <path d="M6 12 C 25 4, 55 4, 74 10 C 56 16, 26 17, 6 12 Z" fill="#ffffff" stroke="#134e6f" stroke-width="1.4" />
+            <path d="M4 12 L 72 10" stroke="#134e6f" stroke-width="1.2" stroke-linecap="round" />
+            <path d="M24 7 L 28 11 M 38 6 L 42 10.5 M 52 6.5 L 55 10" stroke="#134e6f" stroke-width="1" stroke-linecap="round" />
+          </svg>
+          <span class="h-[1.5px] w-12 bg-gradient-to-l from-transparent to-avian-teal/35 rounded-full"></span>
+        </div>
+      </header>
+
+      <!-- ========================================== -->
+      <!-- 1. 게임 설정 화면 (Setup View)              -->
+      <!-- ========================================== -->
+      <main id="setup-view" class="view-panel watercolor-paper rounded-3xl p-5 sm:p-6 border border-white/80">
+        <!-- 숙련자 모드 토글 카드 -->
+        <section class="mb-6">
+          <label for="expert-mode-toggle" class="flex items-center justify-between p-4 rounded-2xl bg-white/85 border border-avian-teal/15 shadow-sm cursor-pointer transition hover:border-avian-oriole/60 active:scale-[0.99]">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-avian-oriole/15 text-avian-orioleDeep flex items-center justify-center shrink-0">
+                <!-- 트로피/목표 아이콘 -->
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                  <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                  <path d="M4 22h16" />
+                  <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                  <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                  <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                </svg>
+              </div>
+              <span class="text-base font-bold text-avian-ink">숙련자 모드</span>
+            </div>
+
+            <!-- 커스텀 체크박스 스위치 -->
+            <div class="relative inline-flex items-center">
+              <input type="checkbox" id="expert-mode-toggle" class="sr-only peer" />
+              <div class="w-12 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-[22px] after:w-[22px] after:transition-all peer-checked:bg-avian-oriole shadow-inner"></div>
+            </div>
+          </label>
+        </section>
+
+        <!-- 인원수 선택 (1~5인) -->
+        <section class="mb-6">
+          <div class="flex items-center justify-between mb-2.5 px-1">
+            <h2 class="text-sm font-bold text-avian-teal flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-avian-leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              인원수 선택
+            </h2>
+            <span id="player-count-badge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-avian-teal/10 text-avian-teal">2인 플레이</span>
+          </div>
+
+          <div id="player-count-buttons" class="grid grid-cols-5 gap-2">
+            <!-- JS에서 1~5인 버튼 생성 및 상태 제어 -->
+          </div>
+        </section>
+
+        <!-- 플레이어 이름 수정 -->
+        <section class="mb-7">
+          <div class="flex items-center justify-between mb-2.5 px-1">
+            <h2 class="text-sm font-bold text-avian-teal flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-avian-oriole" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+              플레이어 이름
+            </h2>
+            <span class="text-[11px] font-medium text-slate-400"> </span>
+          </div>
+
+          <div id="player-name-list" class="space-y-2.5">
+            <!-- JS에서 플레이어 입력 카드 생성 -->
+          </div>
+        </section>
+
+        <!-- 게임 시작 버튼 -->
+        <button id="start-game-btn" type="button" class="btn-press w-full py-4 rounded-2xl bg-gradient-to-r from-avian-teal to-[#1a668f] hover:from-avian-tealDark hover:to-avian-teal text-white font-extrabold text-lg shadow-lg shadow-avian-teal/25 flex items-center justify-center gap-2 transition">
+          <span>기록 시작</span>
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12" />
+            <polyline points="12 5 19 12 12 19" />
+          </svg>
+        </button>
+      </main>
+
+      <!-- ========================================== -->
+      <!-- 2. 챕터별 점수 입력 화면 (Chapter View)      -->
+      <!-- ========================================== -->
+      <section id="chapter-view" class="view-panel view-hidden watercolor-paper rounded-3xl p-5 sm:p-6 border border-white/80">
+        <!-- 챕터 네비게이션 탭 (빠른 이동 가능) -->
+        <div id="chapter-tabs" class="grid gap-1.5 mb-5">
+          <!-- JS에서 동적 생성 (3개 또는 4개 챕터) -->
+        </div>
+
+        <!-- 현재 챕터 타이틀 배너 -->
+        <div class="flex items-center justify-between bg-white/90 rounded-2xl px-4 py-3.5 mb-4 border border-avian-teal/15 shadow-sm">
+          <div class="flex items-center gap-3">
+            <div id="chapter-icon-box" class="w-11 h-11 rounded-2xl bg-avian-teal/10 text-avian-teal flex items-center justify-center shrink-0">
+              <!-- 챕터 아이콘 -->
+            </div>
+            <div>
+              <div id="chapter-step-label" class="text-xs font-extrabold tracking-wider text-avian-orioleDeep uppercase">1. 새 점수</div>
+              <h2 id="chapter-title" class="text-xl font-extrabold text-avian-ink">새 점수</h2>
+            </div>
+          </div>
+
+          <button id="back-to-setup-btn" type="button" class="text-xs font-semibold px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition">
+            설정
+          </button>
+        </div>
+
+        <!-- 플레이어별 점수 입력 리스트 (깜빡임 방지를 위해 DOM 요소 재사용 및 제자리 업데이트) -->
+        <div id="chapter-score-list" class="space-y-3 mb-6">
+          <!-- 플레이어 점수 행 -->
+        </div>
+
+        <!-- 하단 이전 / 다음 버튼 -->
+        <div class="grid grid-cols-2 gap-3">
+          <button id="prev-chapter-btn" type="button" class="btn-press py-3.5 rounded-2xl bg-white border border-avian-teal/20 text-avian-teal font-bold text-base shadow-sm hover:bg-avian-mist transition flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            <span>이전</span>
+          </button>
+
+          <button id="next-chapter-btn" type="button" class="btn-press py-3.5 rounded-2xl bg-gradient-to-r from-avian-teal to-[#1a668f] text-white font-extrabold text-base shadow-md shadow-avian-teal/20 hover:opacity-95 transition flex items-center justify-center gap-1.5">
+            <span id="next-chapter-label">다음</span>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- 3. 총점수 결과 화면 (Results View)          -->
+      <!-- ========================================== -->
+      <section id="result-view" class="view-panel view-hidden watercolor-paper rounded-3xl p-5 sm:p-6 border border-white/80">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <span class="text-xs font-extrabold tracking-wider text-avian-leaf uppercase">FINAL STANDINGS</span>
+            <h2 class="text-2xl font-extrabold text-avian-teal">최종 점수 결과</h2>
+          </div>
+
+          <!-- 점수 복사 버튼 -->
+          <button id="copy-results-btn" type="button" class="btn-press inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-avian-oriole hover:bg-avian-orioleDeep text-white font-bold text-sm shadow-md shadow-avian-oriole/25 transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            <span>점수 복사</span>
+          </button>
+        </div>
+
+        <!-- 순위 카드 리스트 -->
+        <div id="leaderboard-list" class="space-y-3 mb-6">
+          <!-- JS에서 순위별 카드 렌더링 -->
+        </div>
+
+        <!-- 하단 액션 버튼 -->
+        <div class="grid grid-cols-2 gap-3">
+          <button id="edit-scores-btn" type="button" class="btn-press py-3.5 rounded-2xl bg-white border border-avian-teal/20 text-avian-teal font-bold text-sm sm:text-base shadow-sm hover:bg-avian-mist transition">
+            점수 수정하기
+          </button>
+          <button id="new-game-btn" type="button" class="btn-press py-3.5 rounded-2xl bg-avian-teal text-white font-extrabold text-sm sm:text-base shadow-md shadow-avian-teal/20 hover:bg-avian-tealDark transition">
+            새 게임 설정
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- 하단 제작자 표기 -->
+    <footer class="mt-8 pt-3 text-center select-none">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 border border-avian-teal/10 backdrop-blur-xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-avian-oriole"></span>
+        <span class="text-xs font-bold tracking-wide text-avian-teal/85">제작자 천상민</span>
+        <span class="w-1.5 h-1.5 rounded-full bg-avian-leaf"></span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 챕터 5: 1등 동점자 발생 시 타이브레이커 미니 창 -->
+  <!-- ========================================== -->
+  <div id="tiebreaker-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-avian-ink/55 backdrop-blur-xs">
+    <div class="watercolor-paper w-full max-w-sm rounded-3xl p-6 border-2 border-avian-oriole shadow-2xl transform transition-all">
+      <div class="text-center mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-avian-oriole/15 text-avian-orioleDeep flex items-center justify-center mx-auto mb-2.5">
+          <!-- 카드/왕관 아이콘 -->
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="3" width="12" height="16" rx="2" />
+            <path d="M8 7h4" />
+            <path d="M8 11h4" />
+            <path d="M16 7h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1" />
+          </svg>
+        </div>
+        <span class="text-xs font-extrabold tracking-widest text-avian-orioleDeep uppercase">1등 동점자 결정</span>
+        <h3 class="text-xl font-extrabold text-avian-ink mt-1">최종 우승자 선택</h3>
+        <p class="mt-2 px-3 py-2 rounded-xl bg-avian-oriole/10 border border-avian-oriole/25 text-sm font-bold text-avian-teal">
+          대기소에 카드가 많이 남은 사람
+        </p>
+      </div>
+
+      <!-- 1등 동점자 목록 버튼 -->
+      <div id="tiebreaker-candidates" class="space-y-2.5 mb-4">
+        <!-- JS에서 1등 동점자만 버튼으로 생성 -->
+      </div>
+
+      <button id="close-tiebreaker-btn" type="button" class="w-full py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition">
+        점수 다시 확인하기
+      </button>
+    </div>
+  </div>
+
+  <!-- 복사 완료 토스트 알림 -->
+  <div id="toast-message" class="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-all duration-200 translate-y-2">
+    <div class="px-5 py-3 rounded-2xl bg-avian-teal text-white text-sm font-bold shadow-xl flex items-center gap-2 whitespace-nowrap">
+      <svg class="w-4 h-4 text-avian-oriole" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+      <span id="toast-text">점수가 클립보드에 복사되었습니다!</span>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * 윙스팬 포켓 점수 계산기 상태 관리 및 무깜빡임(Zero-Flicker) DOM 제어 스크립트
+     */
+    const state = {
+      playerCount: 2,
+      expertMode: false,
+      currentChapterIndex: 0,
+      tieWinnerId: null,
+      players: [
+        { id: 1, name: '플레이어 1', bird: 0, egg: 0, card: 0, goal: 0 },
+        { id: 2, name: '플레이어 2', bird: 0, egg: 0, card: 0, goal: 0 },
+        { id: 3, name: '플레이어 3', bird: 0, egg: 0, card: 0, goal: 0 },
+        { id: 4, name: '플레이어 4', bird: 0, egg: 0, card: 0, goal: 0 },
+        { id: 5, name: '플레이어 5', bird: 0, egg: 0, card: 0, goal: 0 },
+      ]
+    };
+
+    // 챕터 정의 (숙련자 모드 여부에 따라 3개 또는 4개 활성화)
+    const CHAPTER_DEFINITIONS = [
+      {
+        key: 'bird',
+        stepLabel: 'SCORE',
+        shortTitle: '새 점수',
+        title: '새 점수',
+        accentClass: 'bg-avian-teal/10 text-avian-teal',
+        iconSvg: `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg>`
+      },
+      {
+        key: 'egg',
+        stepLabel: 'SCORE',
+        shortTitle: '알 점수',
+        title: '알 점수',
+        accentClass: 'bg-avian-oriole/15 text-avian-orioleDeep',
+        iconSvg: `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4.42 0 8-3.58 8-8 0-4.95-3.58-12-8-12S4 9.05 4 14c0 4.42 3.58 8 8 8z"/></svg>`
+      },
+      {
+        key: 'card',
+        stepLabel: 'SCORE',
+        shortTitle: '끼워넣은 카드',
+        title: '끼워넣은 카드 점수',
+        accentClass: 'bg-avian-leaf/15 text-avian-leaf',
+        iconSvg: `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="13" height="17" rx="2"/><path d="M16 7h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8"/></svg>`
+      },
+      {
+        key: 'goal',
+        stepLabel: 'BONUS',
+        shortTitle: '목표카드',
+        title: '목표카드 추가점수',
+        accentClass: 'bg-amber-500/15 text-amber-700',
+        iconSvg: `<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`
+      }
+    ];
+
+    // 플레이어 컬러 뱃지 팔레트
+    const PLAYER_BADGE_COLORS = [
+      'bg-avian-teal text-white',
+      'bg-avian-oriole text-white',
+      'bg-avian-leaf text-white',
+      'bg-[#6f5896] text-white',
+      'bg-[#c45b4d] text-white'
+    ];
+
+    function getActiveChapters() {
+      return state.expertMode ? CHAPTER_DEFINITIONS : CHAPTER_DEFINITIONS.slice(0, 3);
+    }
+
+    function getActivePlayers() {
+      return state.players.slice(0, state.playerCount);
+    }
+
+    function calculatePlayerTotal(player) {
+      const base = (Number(player.bird) || 0) + (Number(player.egg) || 0) + (Number(player.card) || 0);
+      return state.expertMode ? base + (Number(player.goal) || 0) : base;
+    }
+
+    // ==========================================
+    // 1. 설정 화면 초기화 및 렌더링
+    // ==========================================
+    function renderPlayerCountButtons() {
+      const container = document.getElementById('player-count-buttons');
+      const badge = document.getElementById('player-count-badge');
+      badge.textContent = `${state.playerCount}인 플레이`;
+
+      container.innerHTML = '';
+      for (let count = 1; count <= 5; count++) {
+        const isSelected = state.playerCount === count;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `btn-press h-12 rounded-2xl font-extrabold text-base transition border ${
+          isSelected
+            ? 'bg-avian-teal text-white border-avian-teal shadow-md shadow-avian-teal/20'
+            : 'bg-white/85 text-avian-ink border-avian-teal/15 hover:border-avian-teal/40'
+        }`;
+        btn.textContent = `${count}인`;
+        btn.addEventListener('click', () => {
+          state.playerCount = count;
+          state.tieWinnerId = null;
+          renderPlayerCountButtons();
+          renderPlayerNameInputs();
+        });
+        container.appendChild(btn);
+      }
+    }
+
+    function renderPlayerNameInputs() {
+      const container = document.getElementById('player-name-list');
+      container.innerHTML = '';
+
+      for (let i = 0; i < state.playerCount; i++) {
+        const player = state.players[i];
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3 p-2.5 pl-3.5 rounded-2xl bg-white/90 border border-avian-teal/15 shadow-xs focus-within:border-avian-oriole focus-within:ring-2 focus-within:ring-avian-oriole/20 transition';
+
+        const badge = document.createElement('span');
+        badge.className = `w-7 h-7 rounded-xl text-xs font-extrabold flex items-center justify-center shrink-0 ${PLAYER_BADGE_COLORS[i]}`;
+        badge.textContent = `${i + 1}`;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = player.name;
+        input.placeholder = `플레이어 ${i + 1}`;
+        input.maxLength = 16;
+        input.className = 'w-full bg-transparent font-bold text-avian-ink focus:outline-none py-1';
+
+        // 클릭/포커스 시 전체 텍스트 한 번에 선택하여 즉시 수정 가능
+        input.addEventListener('focus', function () {
+          this.select();
+        });
+        input.addEventListener('click', function () {
+          this.select();
+        });
+
+        input.addEventListener('input', (e) => {
+          const val = e.target.value;
+          player.name = val.trim() === '' ? `플레이어 ${i + 1}` : val;
+        });
+
+        input.addEventListener('blur', (e) => {
+          if (e.target.value.trim() === '') {
+            player.name = `플레이어 ${i + 1}`;
+            e.target.value = player.name;
+          }
+        });
+
+        row.appendChild(badge);
+        row.appendChild(input);
+        container.appendChild(row);
+      }
+    }
+
+    // ==========================================
+    // 2. 챕터별 점수 입력 화면 (무깜빡임DOM 업데이트)
+    // ==========================================
+    function scrollToTopSmooth() {
+      // 모바일/데스크톱 및 스크롤 컨테이너 환경 모두 대응하여 최상단(y = 0)으로 이동
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+
+    function switchView(viewId) {
+      ['setup-view', 'chapter-view', 'result-view'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (id === viewId) {
+          el.classList.remove('view-hidden');
+        } else {
+          el.classList.add('view-hidden');
+        }
+      });
+      scrollToTopSmooth();
+    }
+
+    function renderChapterTabs() {
+      const chapters = getActiveChapters();
+      const tabsContainer = document.getElementById('chapter-tabs');
+      tabsContainer.style.gridTemplateColumns = `repeat(${chapters.length}, minmax(0, 1fr))`;
+      tabsContainer.innerHTML = '';
+
+      chapters.forEach((chap, idx) => {
+        const isActive = idx === state.currentChapterIndex;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `py-2 px-1.5 rounded-xl text-center transition border ${
+          isActive
+            ? 'bg-avian-teal text-white border-avian-teal shadow-sm font-extrabold'
+            : 'bg-white/75 text-avian-teal/75 border-avian-teal/10 hover:bg-white font-semibold'
+        }`;
+        btn.innerHTML = `
+          <div class="text-xs truncate">${chap.shortTitle}</div>
+        `;
+        btn.addEventListener('click', () => {
+          state.currentChapterIndex = idx;
+          renderChapterScreen();
+          scrollToTopSmooth();
+        });
+        tabsContainer.appendChild(btn);
+      });
+    }
+
+    function renderChapterScreen() {
+      const chapters = getActiveChapters();
+      if (state.currentChapterIndex >= chapters.length) {
+        state.currentChapterIndex = chapters.length - 1;
+      }
+
+      const currentChapter = chapters[state.currentChapterIndex];
+      renderChapterTabs();
+
+      // 헤더 정보 업데이트
+      const iconBox = document.getElementById('chapter-icon-box');
+      iconBox.className = `w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${currentChapter.accentClass}`;
+      iconBox.innerHTML = currentChapter.iconSvg;
+
+      document.getElementById('chapter-step-label').textContent = currentChapter.stepLabel;
+      document.getElementById('chapter-title').textContent = currentChapter.title;
+
+      // 다음 버튼 라벨 업데이트
+      const isLastChapter = state.currentChapterIndex === chapters.length - 1;
+      document.getElementById('next-chapter-label').textContent = isLastChapter ? '결과 보기' : '다음';
+
+      // 플레이어 점수 행 생성 (점수 증감 시 전체 재렌더링하지 않고 해당 input과 합계 텍스트만 직접 수정)
+      const listContainer = document.getElementById('chapter-score-list');
+      listContainer.innerHTML = '';
+
+      const activePlayers = getActivePlayers();
+      activePlayers.forEach((player, idx) => {
+        const currentScore = Number(player[currentChapter.key]) || 0;
+        const totalScore = calculatePlayerTotal(player);
+
+        const card = document.createElement('div');
+        card.className = 'flex items-center justify-between gap-2 p-3.5 rounded-2xl bg-white/95 border border-avian-teal/15 shadow-xs';
+
+        // 좌측: 플레이어 이름 + 실시간 누적 총점 뱃지
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'min-w-0 flex-1';
+        infoDiv.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-lg text-[11px] font-extrabold flex items-center justify-center shrink-0 ${PLAYER_BADGE_COLORS[idx]}">${idx + 1}</span>
+            <span class="font-extrabold text-base text-avian-ink truncate">${escapeHtml(player.name)}</span>
+          </div>
+          <div class="mt-1 pl-8 text-xs font-semibold text-slate-500">
+            현재 합계 <span id="live-total-${player.id}" class="font-extrabold text-avian-teal">${totalScore}</span>점
+          </div>
+        `;
+
+        // 우측: - 버튼 / 직접 숫자 수정 input / + 버튼
+        const controlDiv = document.createElement('div');
+        controlDiv.className = 'flex items-center gap-1.5 shrink-0';
+
+        const minusBtn = document.createElement('button');
+        minusBtn.type = 'button';
+        minusBtn.setAttribute('aria-label', `${player.name} 점수 감소`);
+        minusBtn.className = 'btn-press w-11 h-11 rounded-xl bg-avian-mist hover:bg-avian-sky text-avian-teal font-extrabold text-xl border border-avian-teal/15 flex items-center justify-center select-none';
+        minusBtn.textContent = '−';
+
+        const scoreInput = document.createElement('input');
+        scoreInput.type = 'number';
+        scoreInput.inputMode = 'numeric';
+        scoreInput.min = '0';
+        scoreInput.max = '999';
+        scoreInput.value = currentScore;
+        scoreInput.id = `score-input-${player.id}`;
+        scoreInput.setAttribute('aria-label', `${player.name} ${currentChapter.title}`);
+        scoreInput.className = 'w-14 h-11 rounded-xl bg-avian-parchment border-2 border-avian-teal/20 focus:border-avian-oriole focus:outline-none text-center font-extrabold text-avian-ink';
+
+        const plusBtn = document.createElement('button');
+        plusBtn.type = 'button';
+        plusBtn.setAttribute('aria-label', `${player.name} 점수 증가`);
+        plusBtn.className = 'btn-press w-11 h-11 rounded-xl bg-avian-teal hover:bg-avian-tealDark text-white font-extrabold text-xl shadow-xs flex items-center justify-center select-none';
+        plusBtn.textContent = '+';
+
+        // 점수 동기화 함수 (DOM 노드 값만 즉시 갱신 -> 깜빡임 제로!)
+        const updateScoreInPlace = (newVal) => {
+          const sanitized = Math.max(0, Math.min(999, parseInt(newVal, 10) || 0));
+          player[currentChapter.key] = sanitized;
+          state.tieWinnerId = null; // 점수 변경 시 기존 동점 선택 초기화
+          scoreInput.value = sanitized;
+          const liveTotalEl = document.getElementById(`live-total-${player.id}`);
+          if (liveTotalEl) {
+            liveTotalEl.textContent = calculatePlayerTotal(player);
+          }
+        };
+
+        minusBtn.addEventListener('click', () => {
+          const current = parseInt(scoreInput.value, 10) || 0;
+          updateScoreInPlace(current - 1);
+        });
+
+        plusBtn.addEventListener('click', () => {
+          const current = parseInt(scoreInput.value, 10) || 0;
+          updateScoreInPlace(current + 1);
+        });
+
+        // 번호 직접 터치 시 한 번에 선택하여 바로 고칠 수 있게 처리
+        scoreInput.addEventListener('focus', function () {
+          this.select();
+        });
+        scoreInput.addEventListener('click', function () {
+          this.select();
+        });
+
+        scoreInput.addEventListener('input', (e) => {
+          const raw = e.target.value;
+          if (raw === '') {
+            player[currentChapter.key] = 0;
+            const liveTotalEl = document.getElementById(`live-total-${player.id}`);
+            if (liveTotalEl) liveTotalEl.textContent = calculatePlayerTotal(player);
+            return;
+          }
+          const parsed = Math.max(0, Math.min(999, parseInt(raw, 10) || 0));
+          player[currentChapter.key] = parsed;
+          state.tieWinnerId = null;
+          const liveTotalEl = document.getElementById(`live-total-${player.id}`);
+          if (liveTotalEl) {
+            liveTotalEl.textContent = calculatePlayerTotal(player);
+          }
+        });
+
+        scoreInput.addEventListener('blur', () => {
+          updateScoreInPlace(scoreInput.value);
+        });
+
+        controlDiv.appendChild(minusBtn);
+        controlDiv.appendChild(scoreInput);
+        controlDiv.appendChild(plusBtn);
+
+        card.appendChild(infoDiv);
+        card.appendChild(controlDiv);
+        listContainer.appendChild(card);
+      });
+    }
+
+    // ==========================================
+    // 3. 챕터 5 (1등 동점자 확인) 및 결과 화면
+    // ==========================================
+    function handleProceedToResults() {
+      const activePlayers = getActivePlayers();
+      const scores = activePlayers.map((p) => calculatePlayerTotal(p));
+      const maxScore = Math.max(...scores);
+      const topPlayers = activePlayers.filter((p) => calculatePlayerTotal(p) === maxScore);
+
+      // 1등이 2명 이상 동점인 경우 미니 창(타이브레이커 모달) 표시
+      if (topPlayers.length > 1) {
+        openTiebreakerModal(topPlayers, maxScore);
+      } else {
+        state.tieWinnerId = topPlayers[0].id;
+        showResultsScreen();
+      }
+    }
+
+    function openTiebreakerModal(tiedPlayers, maxScore) {
+      const modal = document.getElementById('tiebreaker-modal');
+      const candidatesContainer = document.getElementById('tiebreaker-candidates');
+      candidatesContainer.innerHTML = '';
+
+      tiedPlayers.forEach((player) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-press w-full p-3.5 rounded-2xl bg-white hover:bg-avian-oriole/10 border-2 border-avian-teal/20 hover:border-avian-oriole flex items-center justify-between transition shadow-xs';
+        btn.innerHTML = `
+          <span class="font-extrabold text-base text-avian-ink">${escapeHtml(player.name)}</span>
+          <span class="px-3 py-1 rounded-full bg-avian-oriole/15 text-avian-orioleDeep text-xs font-extrabold">${maxScore}점 · 선택</span>
+        `;
+        btn.addEventListener('click', () => {
+          state.tieWinnerId = player.id;
+          closeTiebreakerModal();
+          showResultsScreen();
+        });
+        candidatesContainer.appendChild(btn);
+      });
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeTiebreakerModal() {
+      const modal = document.getElementById('tiebreaker-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function getRankedPlayers() {
+      const activePlayers = getActivePlayers().map((p) => ({
+        ...p,
+        total: calculatePlayerTotal(p)
+      }));
+
+      // 총점 내림차순 정렬 + 동점 시 타이브레이커 승자 우선
+      activePlayers.sort((a, b) => {
+        if (b.total !== a.total) return b.total - a.total;
+        if (a.id === state.tieWinnerId) return -1;
+        if (b.id === state.tieWinnerId) return 1;
+        return a.id - b.id;
+      });
+
+      // 순위 부여 (타이브레이커로 선택된 1등은 단독 1등, 나머지는 점수 기준 순위)
+      let currentRank = 1;
+      return activePlayers.map((player, index) => {
+        if (index === 0) {
+          player.rank = 1;
+        } else {
+          const prev = activePlayers[index - 1];
+          if (player.total === prev.total && prev.id !== state.tieWinnerId) {
+            player.rank = prev.rank;
+          } else {
+            player.rank = index + 1;
+          }
+        }
+        return player;
+      });
+    }
+
+    function showResultsScreen() {
+      const ranked = getRankedPlayers();
+      const leaderboard = document.getElementById('leaderboard-list');
+      leaderboard.innerHTML = '';
+
+      ranked.forEach((player) => {
+        const isFirst = player.rank === 1;
+        const card = document.createElement('div');
+        card.className = `p-4 rounded-2xl transition ${
+          isFirst
+            ? 'winner-card'
+            : 'bg-white/90 border border-avian-teal/15 shadow-xs'
+        }`;
+
+        const goalChip = state.expertMode
+          ? `<span class="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-800 font-bold">목표 ${player.goal}</span>`
+          : '';
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="px-2.5 py-1 rounded-xl text-xs font-extrabold shrink-0 ${
+                isFirst
+                  ? 'bg-avian-oriole text-white shadow-xs'
+                  : 'bg-avian-teal/10 text-avian-teal'
+              }">
+                ${isFirst ? '👑 1등' : `${player.rank}등`}
+              </span>
+              <h3 class="text-lg font-extrabold text-avian-ink truncate">${escapeHtml(player.name)}</h3>
+            </div>
+            <div class="text-right shrink-0">
+              <span class="text-2xl font-extrabold ${isFirst ? 'text-avian-orioleDeep' : 'text-avian-teal'}">${player.total}</span>
+              <span class="text-xs font-bold text-slate-500 ml-0.5">점</span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-1.5 text-xs">
+            <span class="px-2 py-1 rounded-lg bg-avian-teal/10 text-avian-teal font-bold">새 ${player.bird}</span>
+            <span class="px-2 py-1 rounded-lg bg-avian-oriole/15 text-avian-orioleDeep font-bold">알 ${player.egg}</span>
+            <span class="px-2 py-1 rounded-lg bg-avian-leaf/15 text-avian-leaf font-bold">카드 ${player.card}</span>
+            ${goalChip}
+          </div>
+        `;
+
+        leaderboard.appendChild(card);
+      });
+
+      switchView('result-view');
+    }
+
+    // ==========================================
+    // 4. 간결한 형식의 점수 복사 기능
+    // ==========================================
+    function copyResultsToClipboard() {
+      const ranked = getRankedPlayers();
+      // 요청 예시 포맷 반영: 게임이름, 플레이어이름, 몇등, 총점수, 알점수, 새점수, 카드점수, 목표점수
+      const lines = ranked.map((p) => {
+        const baseParts = [
+          '윙스팬 포켓',
+          p.name,
+          `${p.rank}등`,
+          `총점수 ${p.total}점`,
+          `알 ${p.egg}`,
+          `새 ${p.bird}`,
+          `카드 ${p.card}`
+        ];
+        if (state.expertMode) {
+          baseParts.push(`목표 ${p.goal}`);
+        }
+        return baseParts.join(', ');
+      });
+
+      const textToCopy = lines.join('\n');
+
+      // iFrame 호환 클립보드 복사 (document.execCommand 우선 사용)
+      const textarea = document.createElement('textarea');
+      textarea.value = textToCopy;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+
+      try {
+        document.execCommand('copy');
+        showToast('점수가 클립보드에 복사되었습니다!');
+      } catch (err) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(textToCopy).then(() => {
+            showToast('점수가 클립보드에 복사되었습니다!');
+          });
+        }
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toast-message');
+      document.getElementById('toast-text').textContent = msg;
+      toast.classList.remove('opacity-0', 'translate-y-2');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2200);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ==========================================
+    // 5. 이벤트 바인딩 및 앱 초기화
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', () => {
+      // 숙련자 모드 토글
+      const expertToggle = document.getElementById('expert-mode-toggle');
+      expertToggle.addEventListener('change', (e) => {
+        state.expertMode = e.target.checked;
+        state.tieWinnerId = null;
+      });
+
+      // 게임 시작 버튼
+      document.getElementById('start-game-btn').addEventListener('click', () => {
+        state.currentChapterIndex = 0;
+        renderChapterScreen();
+        switchView('chapter-view');
+      });
+
+      // 설정으로 돌아가기 버튼
+      document.getElementById('back-to-setup-btn').addEventListener('click', () => {
+        switchView('setup-view');
+      });
+
+      // 챕터 이전 버튼
+      document.getElementById('prev-chapter-btn').addEventListener('click', () => {
+        if (state.currentChapterIndex > 0) {
+          state.currentChapterIndex--;
+          renderChapterScreen();
+          scrollToTopSmooth();
+        } else {
+          switchView('setup-view');
+        }
+      });
+
+      // 챕터 다음 / 결과 보기 버튼
+      document.getElementById('next-chapter-btn').addEventListener('click', () => {
+        const chapters = getActiveChapters();
+        if (state.currentChapterIndex < chapters.length - 1) {
+          state.currentChapterIndex++;
+          renderChapterScreen();
+          scrollToTopSmooth();
+        } else {
+          handleProceedToResults();
+        }
+      });
+
+      // 타이브레이커 닫기 버튼
+      document.getElementById('close-tiebreaker-btn').addEventListener('click', () => {
+        closeTiebreakerModal();
+      });
+
+      // 결과 화면 버튼들
+      document.getElementById('copy-results-btn').addEventListener('click', copyResultsToClipboard);
+
+      document.getElementById('edit-scores-btn').addEventListener('click', () => {
+        renderChapterScreen();
+        switchView('chapter-view');
+      });
+
+      document.getElementById('new-game-btn').addEventListener('click', () => {
+        state.players.forEach((p) => {
+          p.bird = 0;
+          p.egg = 0;
+          p.card = 0;
+          p.goal = 0;
+        });
+        state.tieWinnerId = null;
+        state.currentChapterIndex = 0;
+        switchView('setup-view');
+      });
+
+      // 초기 설정 화면 렌더링
+      renderPlayerCountButtons();
+      renderPlayerNameInputs();
+    });
+  </script>
+</body>
+</html>
